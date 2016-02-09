@@ -1,0 +1,23 @@
+Package: RGraph2js
+Type: Package
+Title: Convert a Graph into a D3js Script
+Version: 0.99.1
+Date: 2016-02-01
+Imports: utils, whisker, rjson, digest, graph
+Suggests: RUnit, BiocStyle, BiocGenerics, xtable, sna
+Authors@R: c(person( "Stephane", "Cano", email = "DL.RSupport@pmi.com",
+        role = c("aut", "cre")), person( "Sylvain", "Gubian", role =
+        "aut"), person( "Florian", "Martin", role = "aut"))
+Description: Generator of web pages which display interactive
+        network/graph visualizations with D3js, jQuery and Raphael.
+License: GPL-2
+SystemRequirements: jQuery, jQueryUI, qTip2, D3js and Raphael are
+        required Javascript libraries made available via the online
+        CDNJS service (http://cdnjs.cloudflare.com).
+Collate: 'RGraph2js-package.R' 'dataformating.R' 'utils.R'
+        'jstemplate.R' 'htmltemplate.R' 'graph2js.R'
+biocViews: Visualization, Network, GraphAndNetwork, ThirdPartyClient
+NeedsCompilation: no
+Author: Stephane Cano [aut, cre], Sylvain Gubian [aut], Florian Martin
+        [aut]
+Maintainer: Stephane Cano <DL.RSupport@pmi.com>

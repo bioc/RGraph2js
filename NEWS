@@ -1,0 +1,17 @@
+CHANGES IN VERSION 0.99.1
+-------------------------
+Improvement
+
+    - Declare third party libraries in the 'SystemRequirements' field of
+      the DESCRIPTION file
+
+New Feature
+
+    - Compatibility with existing infrastructure: add support for the
+      'graph' package: make it possible to pass graph representations from
+      the 'graph' classes to the main function 'graph2js'
+
+
+CHANGES IN VERSION 0.99.0
+-------------------------
+Initial release

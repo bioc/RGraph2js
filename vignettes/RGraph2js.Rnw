@@ -1,0 +1,1015 @@
+%\VignetteIndexEntry{RGraph2js}
+%\VignettePackage{RGraph2js}
+%\VignetteEngine{utils::Sweave}
+
+\documentclass[a4paper]{article}
+
+<<style-Sweave, eval=TRUE, echo=FALSE, results=tex>>=
+BiocStyle::latex()
+@
+
+\newcommand{\exitem}[3]
+           {\item \texttt{\textbackslash#1\{#2\}} #3 \csname#1\endcsname{#2}.}
+\title{RGraph2js: Usage from an R session}
+\author{Stephane Cano, Sylvain Gubian, Florian Martin}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+
+\newpage 
+\section{Introduction} 
+
+\Biocpkg{RGraph2js} provides a powerful HTML visualizer to navigate and
+manipulate graphs/networks. This package has been designed to display
+results from in-house algorithms on biological networks
+\cite{Martin2014BMC15238}, where it is required to associate a plot for
+each node \cite{Poussin02072015}. The package is not limited to this
+specific usage since it is a general tool to visualize various types of
+networks. \Biocpkg{RGraph2js} is highly customizable and offers a
+user-friendly interface.
+
+Included features are:
+
+\begin{itemize}
+\item Interactive visualization tool (pan, zoom)
+\item Customizable appearance
+\item Customizable graph layout
+\item Different node connection types support
+\item Tooltips support
+\item Node dragging
+\item Export as a Scalable Vector Graphics
+(SVG\footnote{\url{https://en.wikipedia.org/wiki/Scalable_Vector_Graphics}})
+image
+\item Barplots and starplots displayable inside the nodes
+\item Compatibility with most platforms and browsers
+\item The generated interactive graph can be easily shared
+\end{itemize}
+
+\Biocpkg{RGraph2js} takes the description of a graph/network as input
+and generates an HTML page the user can open in any recent web browser
+with SVG (Scalable Vector Graphics) rendering support to visualize it
+and interact with it.
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.9\textwidth]{input_output.png}
+\caption{Overview}
+\end{center}
+\end{figure}
+
+\subsection{Technology} 
+               
+The \software{D3js}\cite{2011-d3}
+(Data-Driven Documents) JavaScript library is used to render
+graphs/networks.
+\software{Raphael}\cite{2008-Raphael}
+is another JavaScript library used to render specific in-nodes plots like
+starplots.
+\software{JQuery}\cite{2015-jQuery} and
+\software{JQueryUI}\cite{2015-jQueryUI}
+are used for the graphical interface and the user interactions.
+\software{qTip2}\cite{2013-qTip2}, a \software{JQuery}
+plugin, is used to render advanced tooltips.  A SVG (Scalable Vector
+Graphics) capable browser is required since both \software{D3js} and
+\software{Raphael} generate SVG code.
+
+\bioccomment{An Internet connection is required in order to use external
+  third-party JavaScript libraries, further information is given in the
+  next section}
+
+
+\subsection{External third-party libraries} \software{D3js},
+\software{JQuery}, \software{JQueryUI}, \software{qTip2} and
+\software{Raphael} are used via \software{CDNJS}, the links are:
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.0/jquery.min.js}
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js}
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/basic/
+         jquery.qtip.min.js}
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/basic/
+         imagesloaded.pkg.min.js}
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js}
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.4/raphael-min.js}
+
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.10.3/css/base/minified/
+         jquery-ui.min.css}
+
+\url{http://cdnjs.cloudflare.com/ajax/libs/qtip2/2.2.0/basic/
+         jquery.qtip.min.css}
+
+The above URLs are declared in the function
+\Rfunction{RGraph2js:::getDefaultToolParameters()}.
+
+\subsection{Input}
+The graph/network is defined with a signed and weighted adjacency matrix or
+with the following R objects from the \Biocpkg{graph} package:
+
+\begin{itemize}
+\item \Robject{graphAM}
+\item \Robject{graphBAM}
+\item \Robject{graphNEL}
+\item \Robject{clusterGraph}
+\end{itemize}
+
+Considering the matrix \Robject{a35}:
+
+<<adjmatExample>>=
+v <- c(0, 4, 1,
+       1, 0, 0,
+       -1, 0, 0,
+       0, -2, 0,
+       0, 1, 0)
+a35 <- matrix(v, 3, 5)
+colnames(a35) <- LETTERS[1:5]
+rownames(a35) <- LETTERS[1:3]
+@
+
+... its graphical representation would be as follows:
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{adjmatrix3x5network.png}
+\caption{Graph representation}
+\end{center}
+\end{figure}
+
+\newpage
+
+<<label=tab1,echo=FALSE,results=tex>>=
+library(xtable)
+print(
+    xtable(
+        a35,
+        caption="3x5 Signed Weighted Adjacency Matrix", 
+        label="tab:one",
+        display=c("d", "d", "d", "d", "d", "d")
+    ),
+    caption.placement="bottom"
+)
+@
+
+Reading the adjacency matrix by rows, gives the following links/edges:
+
+Line 1: [A $\rightarrow$ B],  [A -$\bullet$ C]
+
+Line 2: [B $\rightarrow$ A], [B -$\bullet$ D], [B $\rightarrow$ E]
+
+Line 3: [C $\rightarrow$ A]
+
+In the adjacency matrix, a value of
+\begin{itemize}
+\item \emph{0} means "no connection"
+\item \emph{1} "$\rightarrow$" "arrow, directional connection"
+\item \emph{-1} "-|" "-$\bullet$" "dot, directional connection"
+\end{itemize}
+
+\bioccomment{Any bidirectional connection of the same type implies an
+  undirected link marked as "--"}
+
+[A $\rightarrow$ B] and [B $\rightarrow$ A]  $\Rightarrow$  [A -- B]
+
+\bioccomment{Any loop connection, when a node connects with itself, will
+  not be graphically represented}
+
+\bioccomment{Edges weights can be directly specified in the adjacency
+  matrix as real numbers}
+
+\subsection{Output}
+The result files will be made available in a temporary folder or in a
+specified folder of your choice. The folder will contain:
+\begin{itemize}
+\item A folder for the images
+\item The main HTML file
+\item A JavaScript library
+\end{itemize}
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{outputFolderContent.png}
+\caption{Output folder content}
+\end{center}
+\end{figure}
+
+
+\newpage
+\section{Examples}
+\subsection{Simple Example}
+
+This example will show the basics, we will generate a simple network given
+an adjacency matrix.
+
+Define the adjacency matrix \Robject{a1515}:
+
+<<simpleExample>>=
+library(RGraph2js)
+v <- c(1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,
+       1,1,0,1,1,1,0,0,0,0,0,0,0,0,0,
+       1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+       0,1,0,1,1,0,0,0,0,0,1,0,0,0,0,
+       0,1,0,1,1,0,0,0,1,0,0,0,0,0,0,
+       0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,
+       0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,
+       0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,
+       0,0,0,0,1,0,0,0,1,1,0,0,0,0,0,
+       0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,
+       0,0,0,1,0,0,0,0,0,0,0,1,1,1,0,
+       0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+       0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+       0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,
+       0,0,0,0,0,0,0,0,0,0,0,0,0,1,1
+      )
+a1515 <- matrix(v, 15, 15)
+colnames(a1515) <- LETTERS[1:15]
+rownames(a1515) <- LETTERS[1:15]
+@
+
+<<label=tab2,echo=FALSE,results=tex>>=
+library(xtable)
+print(
+    xtable(
+        a1515,
+        caption="15x15 Adjacency matrix", 
+        label="tab:two",
+        display=c("d", "d", "d", "d", "d",
+                  "d", "d", "d", "d", "d",
+                  "d", "d", "d", "d", "d", 
+                  "d")
+    ),
+    caption.placement="bottom"
+)
+@
+
+Define the output destination folder \Robject{outputDir} and generate the
+graph with the function \Rfunction{graph2js()}
+<<<simpleExample>>=
+outputDir <- file.path(tempdir(), "RGraph2js_simpleExample")
+g <- graph2js(a1515, outputDir=outputDir)
+@
+
+Open the \Robject{outputDir} in your browser and click on the html file.
+You should be able to see something similar to this:
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{simpleExample.png}
+\caption{Simple example}
+\end{center}
+\end{figure}
+
+
+\newpage
+\subsection{Visual appearance}
+
+In the previous example, we only specified the adjacency matrix.  This
+example will show how to customize the visual appearance of both nodes and
+links.
+
+The properties of edges (links) can be specified globally or for each edge.
+\Robject{edgesGlobal} below is applied to all edges, where
+\Robject{edgesProp} is only applied to the edges D to E, D to B and B to E.
+
+<<visualAppearanceExample>>=
+edgesGlobal <- list(width=2, color="#0000ff")
+edgesProp <- data.frame(from=c("D", "D", "B"), 
+                        to=c("E", "B", "E"),
+                        width=c(5, 5, 5))
+@
+
+We can also define \Robject{edgesProp} by starting with its default value
+returned by the function \Rfunction{getEdgesDataFrame()}. The first column is
+an automatically generated unique identifier, followed by the columns
+\emph{from}, \emph{to} and \emph{type} which are automatically set
+according to the given adjacency matrix \Robject{a1515}.  \emph{color},
+\emph{width}, \emph{link} and \emph{tooltip} have default values we can
+customize.
+
+\begin{itemize}
+\item \emph{color} : edge color formatted as hex RGB
+\item \emph{width} : edge tickness
+\item \emph{link} : URL associated with the edge
+\item \emph{tooltip} : tooltip content with HTML support
+\end{itemize}
+
+<<visualAppearanceExample>>=
+getEdgesDataFrame(a1515)
+@
+
+Similarly, node properties can be global or specific.
+
+<<visualAppearanceExample>>=
+nodesGlobal <- list(color="#ebebeb")
+nodesProp <- data.frame(shape=c("triangle", "lozenge", "rect"),
+                        color=c("#ff0000", "#0000ff", "#ffff00"))
+rownames(nodesProp) <- c("C", "E", "G")
+@
+
+Since \Robject{nodesProp} holds node specific properties, row names are
+mandatory.  We can call the \Rfunction{getNodesDataFrame()} to define
+\Robject{nodesProp}. The returned data frame contains default values for
+each node.
+
+\begin{itemize}
+\item \emph{color} : color of t he node in hex RGB format
+\item \emph{shape} : the shape to use ("rect", "circle", "lozenge",
+"triangle")
+\item \emph{link} : URL associated with the node
+\item \emph{tooltip} : tooltip content with HTML support
+\end{itemize}
+
+<<visualAppearanceExample>>=
+getNodesDataFrame(A=a1515, nGlobal=nodesGlobal, nProp=nodesProp)
+@
+
+Call the \Rfunction{graph2js()} function as before and specify both nodes and
+edges properties.
+
+<<<visualAppearanceExample>>=
+outputDir <- file.path(tempdir(), "RGraph2js_visualAppearance")
+g <- graph2js(a1515,
+              nodesGlobal=nodesGlobal, edgesGlobal=edgesGlobal,
+              nodesProp=nodesProp, edgesProp=edgesProp,
+              outputDir=outputDir, file="index.html")
+@
+
+\begin{center}
+\begin{figure}[!h]
+\includegraphics[width=0.8\textwidth]{visualAppearance.png}
+\caption{Appearance customized}
+\end{figure}
+\end{center}
+
+Going further, several options can be changed via the \Robject{opts}
+parameter of the function \Rfunction{graph2js()}.  \Robject{opts} defaults to
+the value returned by the function \Rfunction{getDefaultOptions()}.
+
+Please check out the manual for further details.
+
+
+\newpage
+\subsection{Fixed node positons}
+
+We start from a simple adjacency matrix:
+<<fixedNodes1>>=
+v <- c(0, 0, 1,
+       1, 0, 0,
+       0, 0, 0,
+       0, -1, 0,
+       0, 1, 0)
+a35 <- matrix(v, 3, 5)
+colnames(a35) <- LETTERS[1:5]
+rownames(a35) <- LETTERS[1:3]
+@
+
+Then, we specify node coordinates via the node properties.
+\Robject{x} and \Robject{y} represent the Cartesien coordinates, and
+\Robject{fixed} means they are immutable.
+<<fixedNodes2>>=
+r <- 100
+sector <- 2*pi/5
+n.prop <- data.frame(
+    x=c(r*cos(1*sector), r*cos(2*sector), r*cos(3*sector),
+        r*cos(4*sector), r*cos(5*sector)),
+    y=c(r*sin(1*sector), r*sin(2*sector), r*sin(3*sector),
+        r*sin(4*sector), r*sin(5*sector)),
+    fixed=c(TRUE,TRUE,TRUE,TRUE,TRUE)
+)
+rownames(n.prop) <- c("A","B","C","D","E")
+@
+
+Now, we render the graphics.
+<<fixedNodes3>>=
+outputDir <- file.path(tempdir(), "RGraph2js_fixedNodes")
+g <- graph2js(a35, nodesProp=n.prop, outputDir=outputDir)
+@
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{fixedNodes.png}
+\caption{Fixed Node Coordinates Graph}
+\end{center}
+\end{figure}
+
+\newpage 
+\subsection{Time data or categories}
+
+\Biocpkg{RGraph2js} implements a time-step functionality where, at each
+step, a different set of nodes can be highlighted with thicker borders and
+different colors. Each time-step is specified by an index starting at 1 and
+the highlighted nodes and their colors are specified by a dataframe as
+explained below.
+
+Take for instance the following graph definition:
+<<categories1>>=
+v <- c(0, 0, 1,
+       1, 0, 0,
+       0, 0, 0,
+       0, -1, 0,
+       0, 1, 0)
+a35 <- matrix(v, 3, 5)
+colnames(a35) <- LETTERS[1:5]
+rownames(a35) <- LETTERS[1:3]
+@
+
+We specify 4 time-steps in the dataframe below using 2 prefixes:
+\begin{itemize} \item \Robject{leading.nodes.index} specifies the nodes to
+highlight with thicker border \item \Robject{highlight.index} specifies the
+colors for thoses leading nodes.  \end{itemize}
+
+<<categories2>>=
+numnodes <- 5
+nodesProp <- data.frame(leading.nodes.1=rbinom(numnodes, 1, 1/2),
+                        leading.nodes.2=rbinom(numnodes, 1, 1/2),
+                        leading.nodes.3=rbinom(numnodes, 1, 1/2),
+                        leading.nodes.4=rbinom(numnodes, 1, 1/2),
+                        highlight.1=rainbow(numnodes),
+                        highlight.2=rainbow(numnodes),
+                        highlight.3=rainbow(numnodes),
+                        highlight.4=rainbow(numnodes))
+rownames(nodesProp) <- LETTERS[1:5]
+@
+
+Renderering the Graph leads to:
+
+<<categories3>>=
+outputDir <- file.path(tempdir(), "RGraph2js_timeData")
+g <- graph2js(a35,
+              nodesProp=nodesProp,
+              outputDir=outputDir)
+@
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{timeData.png}
+\caption{4 Different states}
+\end{center}
+\end{figure}
+
+Clicking on the \includegraphics[width=10px]{leading_nodes.png} button will
+expand a new panel at the bottom containing a slider to navigate accross
+the time steps.
+
+\newpage
+\subsection{Rendering barplots inside nodes}
+
+<<barplot1>>=
+v <- c(0, 0, 1,
+       1, 0, 0,
+       0, 0, 0,
+       0, -1, 0,
+       0, 1, 0)
+a35 <- matrix(v, 3, 5)
+colnames(a35) <- LETTERS[1:5]
+rownames(a35) <- LETTERS[1:3]
+@
+
+The \Robject{innerValues} parameter allows us to specify a barplot for each
+node and \Robject{innerColors} represent the bar colors. The order in both
+parameters is important for the barplots rendering.
+<<barplot2>>=
+numnodes <- 5
+innerValues <- matrix(runif(numnodes * 8), numnodes, 8)
+rownames(innerValues) <- LETTERS[1:5]
+
+innerColors <- matrix(rainbow(numnodes * 8), numnodes, 8)
+rownames(innerColors) <- LETTERS[1:5]
+@
+
+<<barplot3>>=
+outputDir <- file.path(tempdir(), "RGraph2js_barplots")
+g <- graph2js(a35,
+              innerValues=innerValues,
+              innerColors=innerColors,
+              outputDir=outputDir)
+@
+
+After rendering, here is the result:
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{barplots.png}
+\caption{Barplots inside nodes}
+\end{center}
+\end{figure}
+
+An alternate solution would be to display the barplot inside the node
+tooltips only, as shown below:
+<<barplots4>>=
+opts <- getDefaultOptions()
+opts$displayBarPlotsInsideNodes <- FALSE
+opts$barplotInNodeTooltips <- TRUE
+g <- graph2js(a35,
+              opts=opts,
+              innerValues=innerValues,
+              innerColors=innerColors,
+              outputDir=outputDir)
+@
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{barplotsInTooltipsOnly.png}
+\caption{Barplots in tooltips only}
+\end{center}
+\end{figure}
+
+
+\newpage
+\subsection{Rendering starplots inside nodes}
+
+<<starplots1>>=
+v <- c(0, 0, 1,
+       1, 0, 0,
+       0, 0, 0,
+       0, -1, 0,
+       0, 1, 0)
+a35 <- matrix(v, 3, 5)
+colnames(a35) <- LETTERS[1:5]
+rownames(a35) <- LETTERS[1:3]
+@
+
+Define a starplot for each node. Each starplot has several parameters: the
+value (which determines its radius), the opacity, the color, the label, a
+URL and a tooltip. Additionnaly, a color and opacity can be specified for
+the starplot background.
+
+<<starplots2>>=
+numnodes <- 5
+
+starplotValues <- matrix(runif(numnodes * 8), numnodes, 8)
+rownames(starplotValues) <- LETTERS[1:5]
+
+starplotColors <- matrix(rainbow(numnodes * 8), numnodes, 8)
+rownames(starplotColors) <- LETTERS[1:5]
+
+labels <- c("Sector1", "Sector2", "Sector3", "Sector4",
+            "Sector5", "Sector6", "Sector7", "Sector8")
+
+starplotLabels <- matrix(labels, numnodes, 8)
+rownames(starplotLabels) <- LETTERS[1:5]
+
+starplotTooltips <- matrix(labels, numnodes, 8)
+rownames(starplotTooltips) <- LETTERS[1:5]
+
+# add a url link for each sector
+urls <- c("http://d3js.org/", "http://jquery.com/",
+          "http://jqueryui.com/", "http://qtip2.com/",
+          "http://raphaeljs.com/", "http://www.bioconductor.org/",
+          "http://cran.r-project.org", "http://journal.r-project.org")
+
+starplotUrlLinks <- matrix(urls, numnodes, 8)
+rownames(starplotUrlLinks) <- LETTERS[1:5]
+
+starplotCircleFillColor <- matrix(rainbow(numnodes), numnodes, 1)
+rownames(starplotCircleFillColor) <- LETTERS[1:5]
+
+starplotCircleFillOpacity <- matrix(runif(numnodes,0,1), numnodes, 1)
+rownames(starplotCircleFillOpacity) <- LETTERS[1:5]
+@
+
+Render the Graph:
+<<starplots3>>=
+outputDir <- file.path(tempdir(), "RGraph2js_starplots")
+output.filename <- "test.html"
+g <- graph2js(A=a35,
+              starplotColors=starplotColors,
+              starplotLabels=starplotLabels,
+              starplotValues=starplotValues,
+              starplotTooltips=starplotTooltips,
+              starplotUrlLinks=starplotUrlLinks,
+              starplotCircleFillColor=starplotCircleFillColor,
+              starplotCircleFillOpacity=starplotCircleFillOpacity,
+              outputDir=outputDir,
+              filename=output.filename)
+@
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.5\textwidth]{starplots.png}
+\caption{Starplots}
+\end{center}
+\end{figure}
+
+\bioccomment{Moving the mouse over the sectors will display a tooltip
+showing the sector name or label}
+
+\bioccomment{Clicking on a sector will open the associated URL}
+
+\newpage
+\subsection{Customizing the tooltip content}
+
+<<tooltipContent1>>=
+v <- c(0, 0, 1,
+       1, 0, 0,
+       0, 0, 0,
+       0, -1, 0,
+       0, 1, 0)
+a35 <- matrix(v, 3, 5)
+colnames(a35) <- LETTERS[1:5]
+rownames(a35) <- LETTERS[1:3]
+@
+
+The content of the tooltip can be defined with the
+\Robject{nodesProperties} parameter which fully supports HTML content.
+\bioccomment{We can even add images like any other HTML content}
+
+<<tooltipContent2>>=
+numnodes <- 5
+someHtmlContent <- c(paste0("<table class=\"gridtable\">",
+                            "<tr><th>Header 1</th><th>Header 2</th><th>",
+                            "Header 3</th></tr><tr><td>Text 1,1</td><td>",
+                            "Text 1,2</td><td>Text 1,3</td></tr><tr><td>",
+                            "Text 2,1</td><td>Text 2,2</td><td>Text 2,3",
+                            "</td></tr></table>"),
+                     "This is another <i>content</i>",
+                     "Yet another <font style=\"color:#00ff00;\">one</font>",
+                     paste0("<table>",
+                            "<tr><th>Header 1</th><th>Header 2</th><th>",
+                            "Header 3</th></tr><tr><td>Text 1,1</td><td>",
+                            "Text 1,2</td><td>Text 1,3</td></tr><tr><td>",
+                            "Text 2,1</td><td>Text 2,2</td><td>Text 2,3",
+                            "</td></tr></table>"),
+                     "<h1>Header 1</h1><h2>Header 2</h2>")
+n.prop <- data.frame(tooltip=someHtmlContent)
+rownames(n.prop) <- LETTERS[1:5]
+@ 
+
+Since we specified a custom style \emph{gridtable}, we can define it that
+way:
+
+<<tooltipContent3>>=
+userCssStyles <- "
+<style type=\"text/css\">
+table.gridtable {
+    font-family: verdana,arial,sans-serif;
+    font-size:11px;
+    color:#333333;
+    border-width: 1px;
+    border-color: #666666;
+    border-collapse: collapse;
+}
+table.gridtable th {
+    border-width: 1px;
+    padding: 8px;
+    border-style: solid;
+    border-color: #666666;
+    background-color: #dedede;
+}
+table.gridtable td {
+    border-width: 1px;
+    padding: 8px;
+    border-style: solid;
+    border-color: #666666;
+    background-color: #ffffff;
+}
+</style>
+"
+@
+
+Renderer the Graph and provide custom styles with the
+\Robject{userCssStyles} parameter:
+<<tooltipContent4>>=
+outputDir <- file.path(tempdir(), "RGraph2js_tooltipContent")
+g <- graph2js(a35,
+              opts=opts,
+              nodesProp=n.prop,
+              userCssStyles=userCssStyles,
+              outputDir=outputDir)
+@
+
+The 5 tooltips will be rendered as follows:
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=100px]{tooltipContentA.png}
+\includegraphics[width=100px]{tooltipContentB.png}
+\includegraphics[width=100px]{tooltipContentC.png}
+\includegraphics[width=100px]{tooltipContentD.png}
+\includegraphics[width=100px]{tooltipContentE.png}
+\caption{Custom Tooltips}
+\end{center}
+\end{figure}
+
+
+\newpage
+\subsection{Use the DOT description language}
+
+This example requires the \CRANpkg{sna}\cite{2003-statnet} package which
+allows us to easily get an adjacency matrix from a DOT
+\footnote{\url{http://www.graphviz.org/doc/info/lang.html}}\cite{2000-Graphviz}
+file.
+<<dot1, eval=FALSE>>=
+library(sna)
+
+extdata.path <- file.path(path.package(package="RGraph2js"), "extdata")
+dot.file.path <- file.path(extdata.path, "nohosts.dot")
+adj.mat <- read.dot(dot.file.path)
+@
+
+Since the graph is rather large, we can save computing resources by
+displaying the graph every 100 iterations only, with the option
+\Robject{displayNetworkEveryNLayoutIterations}.  Setting it at "zero" would
+mean to display the graph upon completion only.
+
+<<dot2,eval=FALSE>>=
+opts <- getDefaultOptions()
+opts$displayNetworkEveryNLayoutIterations <- 100
+opts$displayNodeLabels <- FALSE
+opts$layout_forceCharge <- -2400
+nodesGlobal <- list(color="#5544ff")
+outputDir <- file.path(tempdir(), "RGraph2js_dot")
+g <- graph2js(A=adj.mat,
+              nodesGlobal=nodesGlobal,
+              opts=opts,
+              outputDir=outputDir)
+@
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.9\textwidth]{dot.png}
+\caption{Generate a network from a DOT file}
+\end{center}
+\end{figure}
+
+\newpage
+\subsection{Use a graph class}
+
+Instead of specifying an adjacency matrix, you can pass a
+\Biocpkg{graph} class.
+
+Here is an example with a \Robject{graphNEL} object \Robject{gnel}:
+
+<<graphNELExample>>=
+library(graph)
+nodes <- c("A", "B", "C", "D", "E")
+edges <- list(
+    A=list(edges=c("A", "B"), weights=c(2, 2)),
+    B=list(edges=c("A", "E"), weights=c(0.25, 0.25)),
+    C=list(edges=c("A", "D"), weights=c(4, 4)),
+    D=list(edges=c("E"), weights=c(6)),
+    E=list(edges=c("A", "B"), weights=c(1, 1))
+)
+gnel <- new("graphNEL", nodes=nodes, edgeL=edges, edgemode="directed")
+@
+
+The following shows how to graphically represent edges weigths with the
+\Biocpkg{Rgraphviz} package. As you can see, some extra steps are required.
+
+<<graphNELExampleRgraphviz, eval=FALSE>>=
+ew <- as.character(unlist(edgeWeights(gnel)))
+ew <- ew[setdiff(seq(along = ew), removedEdges(gnel))]
+names(ew) <- edgeNames(gnel)
+eAttrs <- list()
+eAttrs$label <- ew
+plot(gnel,
+     attrs=list(
+         edge=list(arrowsize=0.5)
+     ),
+     edgeAttrs=eAttrs)
+@
+
+Now, with \Biocpkg{RGraph2js}, edges weights are translated into edges
+width by default.  This default behaviour can be redefined by specifying
+edges properties.
+
+<<graphNELExampleRGraph2js>>=
+outputDir <- file.path(tempdir(), "RGraph2js_graphNELExample")
+g <- graph2js(A=gnel, outputDir=outputDir)
+@
+
+Please note the following limitations:
+
+\begin{itemize}
+\item links/edges representations are only translatable into
+  "$\rightarrow$" or "--"
+\item as mentioned earlier, loop connections are not rendered
+\end{itemize}
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.7\textwidth]{graphNELComparison.png}
+\caption{Comparison of the original \Robject{graphNEL} (left) and the RGraph2js
+output (right)}
+\end{center}
+\end{figure}
+
+
+\newpage
+\section{Interactions}
+
+\subsection{Using the bottom panel buttons}
+All buttons are described in the next sections.
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.9\textwidth]{buttonPanel.png}
+\caption{Buttons bottom panel}
+\end{center}
+\end{figure}
+
+\subsubsection{Search}
+
+The search field performs an incremental search on all node labels,
+highlighting matches with a tick red border. Clearing the search field
+cancels the search and resets the display.
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=100px]{searchField.png}
+\caption{Search field}
+\end{center}
+\end{figure}
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{search.png}
+\caption{Search feature in action}
+\end{center}
+\end{figure}
+
+\subsubsection{About dialog}
+\includegraphics[width=10px]{about.png} Gives information about the
+software and its version
+
+\subsubsection{Reload}
+\includegraphics[width=10px]{reload.png} Re-compute the layout
+
+\subsubsection{Layout settings}
+\includegraphics[width=10px]{settings.png} Toggle the sub-panel to
+customize the layout engine
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{layoutSettings.png}
+\caption{Layout Settings}
+\end{center}
+\end{figure}
+
+The parameters the user can control with sliders are:
+\begin{itemize}
+\item Charge
+\item Link distance
+\end{itemize}
+
+More details about the force layout can be found on the D3js wiki
+\footnote{\url{https://github.com/mbostock/d3/wiki/Force-Layout}}.
+
+
+\subsubsection{Export} 
+
+\includegraphics[width=10px]{export.png} Lets you export the graph and save
+it as an SVG image
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=80px]{exportAs.png}
+\caption{"Export As" popup menu}
+\end{center}
+\end{figure}
+
+\subsubsection{Zoom}
+\includegraphics[width=10px]{zoomin.png}
+\includegraphics[width=10px]{zoomout.png}
+Zoom in/out without using the mouse wheel
+
+\subsubsection{Leading nodes}
+\includegraphics[width=10px]{leading_nodes.png} Expand a new panel at the
+bottom containing a slider to navigate accross the time steps. Please note
+this button is present only when such data exist.
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{leading_nodes_panel.png}
+\caption{Layout Settings}
+\end{center}
+\end{figure}
+
+\newpage
+
+\subsubsection{Dragging nodes}
+\includegraphics[width=10px]{drag.png} Toggle the nodes dragging feature
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=200px]{nodeDragging.png}
+\caption{Dragging a node}
+\end{center}
+\end{figure}
+
+\subsubsection{Node neighbors}
+
+\includegraphics[width=10px]{neighbors.png} Enable the highlight of the
+neighbors when hovering a node
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=200px]{showNeighbors.png}
+\caption{Highlighting of the neighbors}
+\end{center}
+\end{figure}
+
+\newpage
+
+\subsubsection{Tooltips}
+
+\includegraphics[width=10px]{tooltip.png} Toggle the display of Tooltips
+when the mouse hovers a node or an edge
+
+Below is an example of a node tooltip containing the node name with
+a barplot\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{tooltipExample.png}
+\caption{Tooltips}
+\end{center}
+\end{figure}
+
+\subsubsection{Magnify}
+\includegraphics[width=10px]{fullscreen.png} Magnify the view area to fit
+to the browser current window size
+
+\subsection{Using the Mouse}
+
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.3\textwidth]{mouse_3b.png}
+\caption{Mouse Buttons}
+\end{center}
+\end{figure}
+
+Button (1) is used to drag the whole graph in the drawing area and to drag
+nodes when the corresponding mode \includegraphics[width=10px]{drag.png} is
+activated. Double-clicking performs a zoom in.
+
+Button (2) opens a popup menu when clicking a node.
+\begin{figure}[!h]
+\begin{center}
+\includegraphics[width=0.2\textwidth]{nodePopupMenu.png}
+\caption{Node Popup Menu}
+\end{center}
+\end{figure}
+
+Button (3), the mouse wheel allows to zoom in and out.
+
+\begin{thebibliography}{2}
+
+\bibitem{Martin2014BMC15238} Florian Martin, Alain Sewer, Marja Talikka,
+  Yang Xiang, Julia Hoeng and Manuel C Peitsch, {\em Quantification of
+    biological network perturbations for mechanistic insight and
+    diagnostics using two-layer causal models}, BMC Bioinformatics 2014,
+  15:238. URL \url{http://www.biomedcentral.com/1471-2105/15/238}
+  
+
+\bibitem{Poussin02072015} Poussin Carine, Laurent Alexandra,
+  Peitsch Manuel C., Hoeng Julia and De Leon Hector {\em Systems
+    Biology Reveals Cigarette Smoke-Induced Concentration-Dependent Direct
+    and Indirect Mechanisms That Promote Monocyte-Endothelial Cell
+    Adhesion.}, Toxicological Sciences Journal, 2015.
+
+Abstract:
+\url{http://toxsci.oxfordjournals.org/content/early/2015/08/20/toxsci.kfv137.abstract}
+
+Eprint:
+\url{http://toxsci.oxfordjournals.org/content/early/2015/08/20/toxsci.kfv137.full.pdf+html}
+
+
+\bibitem{2011-d3} Michael Bostock, Vadim Ogievetsky and Jeffrey Heer,
+{\em D3: Data-Driven Documents}, IEEE Trans. Visualization \&
+Comp. Graphics (Proc. InfoVis), 2011. URL
+\url{http://vis.stanford.edu/papers/d3}
+
+
+\bibitem{2015-jQuery} {\em jQuery}, URL \url{http://jquery.org/}
+
+
+\bibitem{2008-Raphael} {\em Raphael}, URL \url{http://raphaeljs.com/}
+
+
+\bibitem{2015-jQueryUI} {\em jQueryUI}, URL \url{http://jqueryui.com/}
+
+
+\bibitem{2013-qTip2} {\em qTip2}, URL \url{http://qtip2.com/}
+
+
+\bibitem{2003-statnet} Mark S. Handcock, David R. Hunter, Carter T. Butts,
+Steven M. Goodreau, and Martina Morris, {\em statnet: Software tools for
+the Statistical Modeling of Network Data.} URL
+\url{http://statnetproject.org}
+
+
+\bibitem{2000-Graphviz} Emden R. Gansner and Stephen C. North, {\em An open
+graph visualization system and its applications to software engineering.},
+SOFTWARE - PRACTICE AND EXPERIENCE Journal, Volume 30 Number 11 pages
+1203-1233, 2000. URL \url{http://www.graphviz.org}
+
+\bibitem{graph} R. Gentleman and Elizabeth Whalen and W. Huber and S. Falcon,
+{\em graph: A package to handle graph data structures}, 
+URL \Biocpkg{graph}
+
+\end{thebibliography}
+
+\end{document}
