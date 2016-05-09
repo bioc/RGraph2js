@@ -1699,7 +1699,7 @@ function GraphRenderer(aData, aOpts, aContainers) {
                 + "text-shadow: 0 0 2px #0166B1, 0 0 2px #0166B1, "
                 + "0 0 2px #0166B1, 0 0 2px #0166B1, 0 0 2px #0166B1;"
                 + "\">"
-                + "RGraph2js v" + this.version()
+                + "RGraph2js"
                 + "</p>"
                 + "<p style=\"font: 14px sans-serif;\">"
                 + "A Graph visualization tool based on D3"
@@ -3899,8 +3899,4 @@ GraphRenderer.prototype.draw = function() {
                 + "<br>please specify either "
                 + "'jsonVar' or 'jsonUrl' in the input data object");
     }
-};
-
-GraphRenderer.prototype.version = function() {
-    return "0.99.1";
 };
