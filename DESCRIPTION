@@ -1,7 +1,7 @@
 Package: RGraph2js
 Type: Package
 Title: Convert a Graph into a D3js Script
-Version: 1.32.0
+Version: 1.33.0
 Date: 2016-05-09
 Imports: utils, whisker, rjson, digest, graph
 Suggests: RUnit, BiocStyle, BiocGenerics, xtable, sna
